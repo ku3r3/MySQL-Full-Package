@@ -1,0 +1,24 @@
+Skenario:
+Buatlah sistem pelaporan lengkap untuk lembaga pelatihan dengan ketentuan:
+
+1. Buat VIEW untuk menampilkan:
+        Laporan peserta per kota
+        Laporan instruktur dengan statistik mengajar
+        Laporan topik dengan jumlah peserta
+2. Buat Stored Procedure untuk:
+        Mendaftarkan peserta ke sesi tertentu
+        Menghitung total honor instruktur per bulan
+        Generate laporan nilai peserta
+3. Buat Trigger untuk:
+        Otomatis menghitung rata-rata nilai per sesi
+        Mencatat setiap perubahan data peserta
+4. Buat Event untuk:
+        Menghapus data log yang sudah lama
+        Mengirim notifikasi (simulasi) untuk sesi yang akan datang
+5. Buat User dengan privilege:
+        Admin (full access)
+        Instruktur (hanya SELECT)
+        Finance (SELECT dan UPDATE pada tabel tertentu)
+6. Backup & Restore:
+        Buat script backup otomatis
+        Simulasi disaster recovery
