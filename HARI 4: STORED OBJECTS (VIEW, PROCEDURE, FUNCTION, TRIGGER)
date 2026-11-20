@@ -1,0 +1,182 @@
+LATIHAN 4.1: Membuat VIEW
+1. Buat view untuk menampilkan data peserta lengkap dengan topik yang diikuti
+              CREATE VIEW v_peserta_topik AS
+              SELECT 
+                  p.id,
+                  p.nama AS nama_peserta,
+                  p.kota,
+                  t.nama_topik,
+                  pd.nilai,
+                  pd.status
+              FROM peserta p
+              LEFT JOIN pendaftar pd ON p.id = pd.peserta_id
+              LEFT JOIN sesi s ON pd.sesi_id = s.id
+              LEFT JOIN topik t ON s.kode_topik = t.kode;
+              
+              -- Test view
+              SELECT * FROM v_peserta_topik;
+2. Buat view untuk statistik instruktur
+              CREATE VIEW v_statistik_instruktur AS
+              SELECT 
+                  i.inisial,
+                  i.nama,
+                  i.honor,
+                  COUNT(DISTINCT s.id) AS jumlah_sesi,
+                  AVG(pd.nilai) AS rata_nilai_peserta
+              FROM instruktur i
+              LEFT JOIN sesi s ON i.inisial = s.inisial
+              LEFT JOIN pendaftar pd ON s.id = pd.sesi_id
+              GROUP BY i.inisial, i.nama, i.honor;
+              
+              -- Test view
+              SELECT * FROM v_statistik_instruktur;
+LATIHAN 4.2: Stored Procedure
+1. Buat procedure untuk menambahkan peserta baru
+              DELIMITER $$
+              
+              CREATE PROCEDURE sp_tambah_peserta(
+                  IN p_nama VARCHAR(50),
+                  IN p_gender ENUM('L', 'P'),
+                  IN p_alamat VARCHAR(100),
+                  IN p_kota VARCHAR(30),
+                  IN p_instansi VARCHAR(50),
+                  IN p_no_hp VARCHAR(15)
+              )
+              BEGIN
+                  INSERT INTO peserta (nama, gender, alamat, kota, instansi, no_hp)
+                  VALUES (p_nama, p_gender, p_alamat, p_kota, p_instansi, p_no_hp);
+                  
+                  SELECT LAST_INSERT_ID() AS id_peserta_baru;
+              END$$
+              
+              DELIMITER ;
+              
+              -- Test procedure
+              CALL sp_tambah_peserta('Indra Wijaya', 'L', 'Jl. Merdeka No. 50', 'Jakarta', 'PT ABC', '089999999999');
+2. Buat procedure untuk menghitung statistik peserta per kota
+              DELIMITER $$
+              
+              CREATE PROCEDURE sp_statistik_kota(
+                  OUT total_peserta INT,
+                  OUT rata_prestasi DECIMAL(5,2)
+              )
+              BEGIN
+                  SELECT COUNT(*) INTO total_peserta FROM peserta;
+                  SELECT AVG(prestasi) INTO rata_prestasi FROM peserta;
+              END$$
+              
+              DELIMITER ;
+              
+              -- Test procedure
+              CALL sp_statistik_kota(@total, @rata);
+              SELECT @total AS total_peserta, @rata AS rata_prestasi;
+
+LATIHAN 4.3: Stored Function
+1. Buat function untuk menghitung usia peserta berdasarkan tanggal registrasi
+              DELIMITER $$
+              
+              CREATE FUNCTION fn_hari_sejak_registrasi(p_tgl_registrasi DATE) 
+              RETURNS INT
+              DETERMINISTIC
+              BEGIN
+                  DECLARE hari INT;
+                  SET hari = DATEDIFF(CURDATE(), p_tgl_registrasi);
+                  RETURN hari;
+              END$$
+              
+              DELIMITER ;
+              
+              -- Test function
+              SELECT nama, tgl_registrasi, fn_hari_sejak_registrasi(tgl_registrasi) AS hari_sejak_daftar
+              FROM peserta;
+2. Buat function untuk menentukan kategori nilai
+              DELIMITER $$
+              
+              CREATE FUNCTION fn_kategori_nilai(p_nilai INT) 
+              RETURNS VARCHAR(20)
+              DETERMINISTIC
+              BEGIN
+                  DECLARE kategori VARCHAR(20);
+                  
+                  IF p_nilai >= 90 THEN
+                      SET kategori = 'Sangat Baik';
+                  ELSEIF p_nilai >= 80 THEN
+                      SET kategori = 'Baik';
+                  ELSEIF p_nilai >= 70 THEN
+                      SET kategori = 'Cukup';
+                  ELSE
+                      SET kategori = 'Kurang';
+                  END IF;
+                  
+                  RETURN kategori;
+              END$$
+              
+              DELIMITER ;
+              
+              -- Test function
+              SELECT nama, nilai, fn_kategori_nilai(nilai) AS kategori 
+              FROM pendaftar 
+              WHERE nilai IS NOT NULL;
+
+LATIHAN 4.4: Trigger
+1. Buat trigger untuk mencatat log saat ada peserta baru
+              -- Buat tabel log terlebih dahulu
+              CREATE TABLE log_peserta (
+                  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                  aksi VARCHAR(20),
+                  peserta_id INT UNSIGNED,
+                  nama VARCHAR(50),
+                  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+              );
+              
+              -- Buat trigger
+              DELIMITER $$
+              
+              CREATE TRIGGER tr_after_insert_peserta
+              AFTER INSERT ON peserta
+              FOR EACH ROW
+              BEGIN
+                  INSERT INTO log_peserta (aksi, peserta_id, nama)
+                  VALUES ('INSERT', NEW.id, NEW.nama);
+              END$$
+              
+              DELIMITER ;
+              
+              -- Test trigger
+              INSERT INTO peserta (nama, gender, kota, instansi) 
+              VALUES ('Test User', 'L', 'Jakarta', 'PT Test');
+              
+              -- Verifikasi log
+              SELECT * FROM log_peserta;
+2. Buat trigger untuk update jumlah peserta di tabel sesi
+              DELIMITER $$
+              
+              CREATE TRIGGER tr_after_insert_pendaftar
+              AFTER INSERT ON pendaftar
+              FOR EACH ROW
+              BEGIN
+                  UPDATE sesi 
+                  SET jumlah_peserta = jumlah_peserta + 1
+                  WHERE id = NEW.sesi_id;
+              END$$
+              
+              DELIMITER ;
+              
+              -- Test trigger
+              INSERT INTO pendaftar (sesi_id, peserta_id, nilai, status) 
+              VALUES (1, 6, 85, 'Lulus');
+              
+              -- Verifikasi
+              SELECT id, kode_topik, jumlah_peserta FROM sesi WHERE id = 1;
+
+LATIHAN 4.5: Event Scheduler
+1. Buat event untuk menghapus log yang lebih dari 30 hari
+              -- Aktifkan event scheduler
+              SET GLOBAL event_scheduler = ON;
+              
+              -- Buat event
+              CREATE EVENT ev_cleanup_log
+              ON SCHEDULE EVERY 1 DAY
+              DO
+                  DELETE FROM log_peserta 
+                  WHERE timestamp < DATE_SUB(NOW(), INTERVAL 30 DAY);
