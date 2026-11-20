@@ -1,0 +1,85 @@
+Skenario:
+Anda adalah DBA di sebuah lembaga pelatihan. Tugas Anda membuat database untuk mengelola data peserta, instruktur, topik pelatihan, sesi, dan pendaftar.
+Langkah 1: Buat Database
+            -- Hapus database jika sudah ada (untuk reset)
+            DROP DATABASE IF EXISTS sistra;
+            
+            -- Buat database baru
+            CREATE DATABASE sistra;
+            
+            -- Aktifkan database
+            USE sistra;
+Langkah 2: Buat Tabel Peserta
+            CREATE TABLE peserta (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                nama VARCHAR(50) NOT NULL,
+                gender ENUM('L', 'P') NOT NULL,
+                alamat VARCHAR(100),
+                kota VARCHAR(30) DEFAULT 'Jakarta',
+                instansi VARCHAR(50),
+                no_hp VARCHAR(15),
+                tgl_registrasi DATE DEFAULT (CURDATE()),
+                prestasi INT DEFAULT 0
+            );
+Langkah 3: Buat Tabel Instruktur
+            CREATE TABLE instruktur (
+                inisial CHAR(3) PRIMARY KEY,
+                nama VARCHAR(50) NOT NULL,
+                honor INT UNSIGNED DEFAULT 0,
+                no_hp VARCHAR(15),
+                spesialisasi VARCHAR(50)
+            );
+Langkah 4: Buat Tabel Topik
+            CREATE TABLE topik (
+                kode CHAR(5) PRIMARY KEY,
+                nama_topik VARCHAR(100) NOT NULL,
+                jumlah_jam INT UNSIGNED NOT NULL,
+                tingkat ENUM('Dasar', 'Menengah', 'Lanjutan') DEFAULT 'Dasar'
+            );
+Langkah 5: Buat Tabel Sesi (dengan Foreign Key)
+            CREATE TABLE sesi (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                kode_topik CHAR(5) NOT NULL,
+                inisial CHAR(3) NOT NULL,
+                tanggal_mulai DATE,
+                tanggal_selesai DATE,
+                jumlah_peserta INT UNSIGNED DEFAULT 0,
+                FOREIGN KEY (kode_topik) REFERENCES topik(kode) ON DELETE CASCADE,
+                FOREIGN KEY (inisial) REFERENCES instruktur(inisial) ON DELETE CASCADE
+            );
+Langkah 6: Buat Tabel Pendaftar (dengan Foreign Key)
+            CREATE TABLE pendaftar (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                sesi_id INT UNSIGNED NOT NULL,
+                peserta_id INT UNSIGNED NOT NULL,
+                nilai INT UNSIGNED,
+                status ENUM('Terdaftar', 'Lulus', 'Tidak Lulus') DEFAULT 'Terdaftar',
+                FOREIGN KEY (sesi_id) REFERENCES sesi(id) ON DELETE CASCADE,
+                FOREIGN KEY (peserta_id) REFERENCES peserta(id) ON DELETE CASCADE
+            );
+Tantangan Bonus:
+    Tambahkan kolom email di tabel peserta dengan constraint UNIQUE
+    Buat tabel kategori_topik dan hubungkan dengan tabel topik menggunakan Foreign Key
+
+LATIHAN 1.2: Memahami Tipe Data & Constraint
+Instruksi:
+Buat tabel berikut dengan tipe data yang sesuai:
+          -- Tabel Log Aktivitas
+          CREATE TABLE log_aktivitas (
+              id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+              user_id INT UNSIGNED NOT NULL,
+              aksi VARCHAR(50) NOT NULL,
+              timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              ip_address VARCHAR(45),
+              keterangan TEXT
+          );
+          
+          -- Tabel Dokumen (Binary Data)
+          CREATE TABLE dokumen (
+              id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+              nama_dokumen VARCHAR(100) NOT NULL,
+              tipe_dokumen ENUM('PDF', 'DOC', 'XLS', 'IMG') NOT NULL,
+              ukuran_file INT UNSIGNED, -- dalam bytes
+              konten BLOB,
+              tanggal_upload DATE DEFAULT (CURDATE())
+          );
