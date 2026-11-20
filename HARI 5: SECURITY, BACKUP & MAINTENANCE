@@ -1,0 +1,84 @@
+LATIHAN 5.1: User Management
+1. Buat user baru dengan privilege terbatas
+            -- Buat user untuk admin keuangan
+            CREATE USER 'admin_keuangan'@'localhost' IDENTIFIED BY 'Keuangan123!';
+            
+            -- Berikan privilege SELECT dan UPDATE pada database sistra
+            GRANT SELECT, UPDATE ON sistra.* TO 'admin_keuangan'@'localhost';
+            
+            -- Verifikasi privilege
+            SHOW GRANTS FOR 'admin_keuangan'@'localhost';
+2. Buat user untuk instruktur (hanya bisa melihat data)
+            CREATE USER 'instruktur_user'@'localhost' IDENTIFIED BY 'Instruktur123!';
+            
+            GRANT SELECT ON sistra.peserta TO 'instruktur_user'@'localhost';
+            GRANT SELECT ON sistra.topik TO 'instruktur_user'@'localhost';
+            GRANT SELECT ON sistra.sesi TO 'instruktur_user'@'localhost';
+            
+            SHOW GRANTS FOR 'instruktur_user'@'localhost';
+3. Cabut privilege user
+            REVOKE UPDATE ON sistra.* FROM 'admin_keuangan'@'localhost';
+            
+            SHOW GRANTS FOR 'admin_keuangan'@'localhost';
+4. Hapus user
+            DROP USER 'instruktur_user'@'localhost';
+
+LATIHAN 5.2: Backup & Restore
+1. Backup database menggunakan mysqldump (via CMD/PowerShell)
+            # Backup seluruh database
+            mysqldump -u root -p sistra > C:\backup\sistra_backup.sql
+            
+            # Backup hanya tabel peserta
+            mysqldump -u root -p sistra peserta > C:\backup\peserta_backup.sql
+            
+            # Backup dengan struktur dan data terpisah
+            mysqldump -u root -p --tab=C:\backup sistra
+2. Restore database
+            # Hapus database terlebih dahulu (opsional)
+            mysql -u root -p -e "DROP DATABASE sistra;"
+            
+            # Buat database baru
+            mysql -u root -p -e "CREATE DATABASE sistra;"
+            
+            # Restore dari file backup
+            mysql -u root -p sistra < C:\backup\sistra_backup.sql
+3. Export data ke CSV
+            -- Export data peserta ke CSV
+            SELECT * FROM peserta 
+            INTO OUTFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/peserta.csv'
+            FIELDS TERMINATED BY ',' 
+            ENCLOSED BY '"'
+            LINES TERMINATED BY '\n';
+4. Import data dari CSV
+            -- Buat tabel baru untuk import
+            CREATE TABLE peserta_import (
+                id INT,
+                nama VARCHAR(50),
+                gender ENUM('L', 'P'),
+                alamat VARCHAR(100),
+                kota VARCHAR(30),
+                instansi VARCHAR(50),
+                no_hp VARCHAR(15),
+                tgl_registrasi DATE,
+                prestasi INT
+            );
+            
+            -- Import dari CSV
+            LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/peserta.csv'
+            INTO TABLE peserta_import
+            FIELDS TERMINATED BY ',' 
+            ENCLOSED BY '"'
+            LINES TERMINATED BY '\n'
+            IGNORE 1 LINES;
+
+LATIHAN 5.3: Database Maintenance
+1. Check table integrity
+            CHECK TABLE peserta;
+            CHECK TABLE instruktur;
+2. Repair table (jika ada error)
+            REPAIR TABLE peserta;
+3. Optimize table (defragmentasi)
+            OPTIMIZE TABLE peserta;
+            OPTIMIZE TABLE pendaftar;
+4. Analisis table
+            ANALYZE TABLE peserta;
