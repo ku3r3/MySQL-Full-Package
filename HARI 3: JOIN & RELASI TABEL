@@ -1,0 +1,77 @@
+LATIHAN 3.1: INNER JOIN
+Instruksi:
+Buat query untuk menggabungkan data dari beberapa tabel:
+1. Tampilkan nama peserta dan nama topik yang mereka ikuti
+          SELECT p.nama AS nama_peserta, t.nama_topik 
+          FROM peserta p
+          INNER JOIN pendaftar pd ON p.id = pd.peserta_id
+          INNER JOIN sesi s ON pd.sesi_id = s.id
+          INNER JOIN topik t ON s.kode_topik = t.kode;
+2. Tampilkan nama instruktur dan topik yang diajarkan
+          SELECT i.nama AS nama_instruktur, t.nama_topik 
+          FROM instruktur i
+          INNER JOIN sesi s ON i.inisial = s.inisial
+          INNER JOIN topik t ON s.kode_topik = t.kode;
+3. Tampilkan peserta yang sudah lulus dengan nilai di atas 80
+          SELECT p.nama, t.nama_topik, pd.nilai 
+          FROM peserta p
+          INNER JOIN pendaftar pd ON p.id = pd.peserta_id
+          INNER JOIN sesi s ON pd.sesi_id = s.id
+          INNER JOIN topik t ON s.kode_topik = t.kode
+          WHERE pd.status = 'Lulus' AND pd.nilai > 80;
+
+LATIHAN 3.2: LEFT JOIN & RIGHT JOIN
+1. Tampilkan semua peserta, termasuk yang belum mendaftar sesi
+          SELECT p.nama, p.kota, t.nama_topik 
+          FROM peserta p
+          LEFT JOIN pendaftar pd ON p.id = pd.peserta_id
+          LEFT JOIN sesi s ON pd.sesi_id = s.id
+          LEFT JOIN topik t ON s.kode_topik = t.kode;
+2. Tampilkan semua topik, termasuk yang belum ada sesinya
+          SELECT t.nama_topik, i.nama AS nama_instruktur 
+          FROM topik t
+          LEFT JOIN sesi s ON t.kode = s.kode_topik
+          LEFT JOIN instruktur i ON s.inisial = i.inisial;
+3. Tampilkan instruktur yang belum mengajar sesi apapun
+          SELECT i.nama 
+          FROM instruktur i
+          LEFT JOIN sesi s ON i.inisial = s.inisial
+          WHERE s.id IS NULL;
+
+LATIHAN 3.3: GROUP BY dengan JOIN
+1. Hitung jumlah peserta per topik
+          SELECT t.nama_topik, COUNT(pd.peserta_id) AS jumlah_peserta 
+          FROM topik t
+          INNER JOIN sesi s ON t.kode = s.kode_topik
+          INNER JOIN pendaftar pd ON s.id = pd.sesi_id
+          GROUP BY t.nama_topik;
+2. Tampilkan rata-rata nilai per instruktur
+          SELECT i.nama AS nama_instruktur, AVG(pd.nilai) AS rata_nilai 
+          FROM instruktur i
+          INNER JOIN sesi s ON i.inisial = s.inisial
+          INNER JOIN pendaftar pd ON s.id = pd.sesi_id
+          WHERE pd.nilai IS NOT NULL
+          GROUP BY i.nama;
+3. Tampilkan topik dengan jumlah peserta lebih dari 3
+          SELECT t.nama_topik, COUNT(pd.peserta_id) AS jumlah_peserta 
+          FROM topik t
+          INNER JOIN sesi s ON t.kode = s.kode_topik
+          INNER JOIN pendaftar pd ON s.id = pd.sesi_id
+          GROUP BY t.nama_topik
+          HAVING COUNT(pd.peserta_id) > 3;
+
+LATIHAN 3.4: Subquery
+1. Tampilkan peserta dengan prestasi di atas rata-rata
+          SELECT nama, prestasi 
+          FROM peserta 
+          WHERE prestasi > (SELECT AVG(prestasi) FROM peserta);
+2. Tampilkan instruktur dengan honor tertinggi
+          SELECT nama, honor 
+          FROM instruktur 
+          WHERE honor = (SELECT MAX(honor) FROM instruktur);
+3. Tampilkan peserta yang sudah mengikuti lebih dari 1 sesi
+          SELECT p.nama, COUNT(pd.sesi_id) AS jumlah_sesi 
+          FROM peserta p
+          INNER JOIN pendaftar pd ON p.id = pd.peserta_id
+          GROUP BY p.id, p.nama
+          HAVING COUNT(pd.sesi_id) > 1;
