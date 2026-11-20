@@ -1,0 +1,132 @@
+LATIHAN 2.1: INSERT Data
+Instruksi:
+Masukkan data dummy ke dalam tabel yang sudah dibuat.
+Data Peserta:
+            INSERT INTO peserta (nama, gender, alamat, kota, instansi, no_hp, prestasi) VALUES
+            ('Ahmad Fauzi', 'L', 'Jl. Sudirman No. 10', 'Jakarta', 'PT Garuda', '081234567890', 85),
+            ('Siti Nurhaliza', 'P', 'Jl. Thamrin No. 25', 'Jakarta', 'PT Telkom', '082345678901', 90),
+            ('Budi Santoso', 'L', 'Jl. Asia Afrika No. 15', 'Bandung', 'PT PLN', '083456789012', 78),
+            ('Dewi Lestari', 'P', 'Jl. Diponegoro No. 30', 'Surabaya', 'PT BNI', '084567890123', 88),
+            ('Eko Prasetyo', 'L', 'Jl. Malioboro No. 5', 'Yogyakarta', 'PT Mandiri', '085678901234', 92),
+            ('Fitri Handayani', 'P', 'Jl. Gatot Subroto No. 40', 'Jakarta', 'PT BCA', '086789012345', 80),
+            ('Gunawan Wibowo', 'L', 'Jl. Ahmad Yani No. 20', 'Semarang', 'PT BRI', '087890123456', 75),
+            ('Hana Pertiwi', 'P', 'Jl. Imam Bonjol No. 12', 'Medan', 'PT Astra', '088901234567', 87);
+Data Instruktur:
+            INSERT INTO instruktur (inisial, nama, honor, no_hp, spesialisasi) VALUES
+            ('JL', 'Jeremy London', 500000, '081111111111', 'Database'),
+            ('KH', 'Katie Holmes', 450000, '082222222222', 'Programming'),
+            ('BS', 'Ben Stiler', 600000, NULL, 'Network'),
+            ('AK', 'Alicia Keys', 550000, NULL, 'Web Development'),
+            ('MC', 'Mariah Carey', 400000, '083333333333', 'System Admin');
+Data Topik:
+            INSERT INTO topik (kode, nama_topik, jumlah_jam, tingkat) VALUES
+            ('DB001', 'MySQL Fundamental', 40, 'Dasar'),
+            ('DB002', 'MySQL Advanced', 60, 'Lanjutan'),
+            ('PR001', 'Python Basic', 30, 'Dasar'),
+            ('PR002', 'Python for Data Science', 50, 'Menengah'),
+            ('NW001', 'Cisco CCNA', 80, 'Menengah'),
+            ('WD001', 'HTML & CSS', 20, 'Dasar'),
+            ('WD002', 'JavaScript & React', 40, 'Menengah');
+Data Sesi:
+            INSERT INTO sesi (kode_topik, inisial, tanggal_mulai, tanggal_selesai, jumlah_peserta) VALUES
+            ('DB001', 'JL', '2026-11-23', '2026-11-27', 5),
+            ('DB002', 'JL', '2026-12-01', '2026-12-10', 3),
+            ('PR001', 'KH', '2026-11-25', '2026-11-28', 4),
+            ('NW001', 'BS', '2026-12-05', '2026-12-15', 6),
+            ('WD001', 'AK', '2026-11-30', '2026-12-02', 8);
+Data Pendaftar:
+            INSERT INTO pendaftar (sesi_id, peserta_id, nilai, status) VALUES
+            (1, 1, 85, 'Lulus'),
+            (1, 2, 90, 'Lulus'),
+            (1, 3, 78, 'Lulus'),
+            (1, 4, 88, 'Lulus'),
+            (1, 5, 92, 'Lulus'),
+            (2, 1, 80, 'Lulus'),
+            (2, 2, 85, 'Lulus'),
+            (2, 5, 88, 'Lulus'),
+            (3, 3, 75, 'Lulus'),
+            (3, 6, 80, 'Lulus'),
+            (3, 7, 70, 'Tidak Lulus'),
+            (3, 8, 82, 'Lulus'),
+            (4, 1, NULL, 'Terdaftar'),
+            (4, 4, NULL, 'Terdaftar'),
+            (5, 2, NULL, 'Terdaftar'),
+            (5, 6, NULL, 'Terdaftar');
+
+LATIHAN 2.2: UPDATE & DELETE
+Instruksi:
+Lakukan operasi UPDATE dan DELETE berdasarkan skenario berikut:
+Skenario 1: Kenaikan Honor Instruktur
+            -- Berikan kenaikan honor 10% untuk semua instruktur
+            UPDATE instruktur 
+            SET honor = honor * 1.1;
+            
+            -- Verifikasi hasil
+            SELECT inisial, nama, honor FROM instruktur;
+Skenario 2: Update Data Peserta
+            -- Update kota peserta dengan id = 3 menjadi 'Bandung'
+            UPDATE peserta 
+            SET kota = 'Bandung' 
+            WHERE id = 3;
+            
+            -- Update prestasi peserta dengan id = 7 menjadi 80
+            UPDATE peserta 
+            SET prestasi = 80 
+            WHERE id = 7;
+Skenario 3: Hapus Data
+            -- Hapus peserta dengan id = 8 (Hana Pertiwi)
+            DELETE FROM peserta 
+            WHERE id = 8;
+            
+            -- Verifikasi
+            SELECT * FROM peserta;
+Skenario 4: Update Massal dengan Kondisi
+            -- Tambahkan 50000 honor untuk instruktur dengan honor di bawah 500000
+            UPDATE instruktur 
+            SET honor = honor + 50000 
+            WHERE honor < 500000;
+
+LATIHAN 2.3: SELECT dengan WHERE & Filtering
+Instruksi:
+Buat query untuk menjawab pertanyaan berikut:
+1. Tampilkan semua peserta dari Jakarta
+            SELECT * FROM peserta 
+            WHERE kota = 'Jakarta';
+2. Tampilkan peserta wanita dengan prestasi di atas 85
+            SELECT nama, kota, prestasi 
+            FROM peserta 
+            WHERE gender = 'P' AND prestasi > 85;
+3. Tampilkan instruktur dengan honor antara 400000 dan 500000
+            SELECT nama, honor 
+            FROM instruktur 
+            WHERE honor BETWEEN 400000 AND 500000;
+4. Tampilkan peserta yang namanya diawali huruf 'A' atau 'B'
+            SELECT nama, kota 
+            FROM peserta 
+            WHERE nama LIKE 'A%' OR nama LIKE 'B%';
+5. Tampilkan peserta yang belum punya nomor HP
+            SELECT nama, kota 
+            FROM peserta 
+            WHERE no_hp IS NULL;
+6. Tampilkan topik dengan tingkat 'Dasar' atau 'Menengah'
+            SELECT nama_topik, tingkat 
+            FROM topik 
+            WHERE tingkat IN ('Dasar', 'Menengah');
+7. Tampilkan peserta dari Jakarta, Bandung, atau Surabaya, urutkan berdasarkan nama
+            SELECT nama, kota, prestasi 
+            FROM peserta 
+            WHERE kota IN ('Jakarta', 'Bandung', 'Surabaya')
+            ORDER BY nama ASC;
+8. Hitung rata-rata prestasi peserta per kota
+            SELECT kota, AVG(prestasi) AS rata_prestasi 
+            FROM peserta 
+            GROUP BY kota;
+9. Tampilkan kota dengan jumlah peserta lebih dari 2
+            SELECT kota, COUNT(*) AS jumlah_peserta 
+            FROM peserta 
+            GROUP BY kota 
+            HAVING COUNT(*) > 2;
+10. Tampilkan instruktur dengan honor di atas rata-rata
+            SELECT nama, honor 
+            FROM instruktur 
+            WHERE honor > (SELECT AVG(honor) FROM instruktur);
