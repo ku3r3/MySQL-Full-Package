@@ -1,0 +1,97 @@
+'=============================================================
+' MODULE: modDatabase - Koneksi ke MySQL
+'=============================================================
+Option Explicit
+
+Public cn As ADODB.Connection
+Public rs As ADODB.Recordset
+Public isConnected As Boolean
+
+Public Function OpenConnection() As Boolean
+    On Error GoTo ErrorHandler
+    
+    Dim server As String, port As String, dbName As String
+    Dim user As String, pass As String
+    
+    server = ThisWorkbook.Sheets("Config").Range("B2").Value
+    port = ThisWorkbook.Sheets("Config").Range("B3").Value
+    dbName = ThisWorkbook.Sheets("Config").Range("B4").Value
+    user = ThisWorkbook.Sheets("Config").Range("B5").Value
+    pass = ThisWorkbook.Sheets("Config").Range("B6").Value
+    
+    Set cn = New ADODB.Connection
+    
+    Dim connStr As String
+    connStr = "DRIVER={MySQL ODBC 8.0 Unicode Driver};" & _
+              "SERVER=" & server & ";" & _
+              "PORT=" & port & ";" & _
+              "DATABASE=" & dbName & ";" & _
+              "USER=" & user & ";" & _
+              "PASSWORD=" & pass & ";" & _
+              "OPTION=3;"
+    
+    cn.Open connStr
+    isConnected = True
+    OpenConnection = True
+    Call LogActivity("Koneksi database BERHASIL")
+    Exit Function
+    
+ErrorHandler:
+    isConnected = False
+    OpenConnection = False
+    MsgBox "Error koneksi: " & vbCrLf & Err.Description, vbCritical
+    Call LogActivity("Koneksi GAGAL: " & Err.Description)
+End Function
+
+Public Sub CloseConnection()
+    On Error Resume Next
+    If Not cn Is Nothing Then
+        If cn.State = adStateOpen Then cn.Close
+        Set cn = Nothing
+    End If
+    isConnected = False
+End Sub
+
+Public Function ExecuteQuery(sql As String) As Boolean
+    On Error GoTo ErrorHandler
+    If Not isConnected Then
+        If Not OpenConnection() Then
+            ExecuteQuery = False
+            Exit Function
+        End If
+    End If
+    cn.Execute sql
+    ExecuteQuery = True
+    Exit Function
+ErrorHandler:
+    ExecuteQuery = False
+    MsgBox "Error query: " & vbCrLf & Err.Description & vbCrLf & "SQL: " & Left(sql, 200), vbCritical
+    Call LogActivity("Query GAGAL: " & Err.Description)
+End Function
+
+Public Function GetRecordset(sql As String) As ADODB.Recordset
+    On Error GoTo ErrorHandler
+    If Not isConnected Then
+        If Not OpenConnection() Then
+            Set GetRecordset = Nothing
+            Exit Function
+        End If
+    End If
+    Set rs = New ADODB.Recordset
+    rs.Open sql, cn, adOpenStatic, adLockReadOnly
+    Set GetRecordset = rs
+    Exit Function
+ErrorHandler:
+    Set GetRecordset = Nothing
+End Function
+
+Public Sub LogActivity(activity As String)
+    On Error Resume Next
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("Log_Aktivitas")
+    Dim lastRow As Long
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row + 1
+    ws.Cells(lastRow, 1).Value = Now
+    ws.Cells(lastRow, 2).Value = Environ("USERNAME")
+    ws.Cells(lastRow, 3).Value = activity
+End Sub
