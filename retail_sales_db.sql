@@ -597,3 +597,244 @@ SELECT 'Wilayah Terbesar', region_name FROM (
     GROUP BY region_name ORDER BY rev DESC LIMIT 1
 ) x;
 
+flowchart TD
+    A([MULAI]) --> B[Import CSV ke stg_sales]
+    B --> C[Data Profiling]
+    C --> D{Ada masalah?}
+    D -->|Ya| E[Logging masalah]
+    E --> F[Hapus Duplikat]
+    F --> G[Standarisasi Tanggal]
+    G --> H[Impute Missing Values]
+    H --> I{Data valid?}
+    I -->|Tidak| J[Hapus baris invalid]
+    I -->|Ya| K[Extract ke dim_product]
+    J --> K
+    K --> L[Extract ke dim_region]
+    L --> M[Generate dim_date]
+    M --> N[Load ke fact_sales]
+    N --> O[Buat View Reporting]
+    O --> P{Query analisis}
+    P --> Q[Top 5 Produk]
+    P --> R[Ringkasan Wilayah]
+    P --> S[Tren Bulanan]
+    P --> T[Growth MoM]
+    Q --> U[Dashboard Visualisasi]
+    R --> U
+    S --> U
+    T --> U
+    U --> V[Insight & Rekomendasi]
+    V --> W([SELESAI])
+	
+
+PERSIAPAN DATA (Sebelum Visualisasi)
+Query SQL untuk Data Bersih (Gunakan di Semua Chart)
+
+USE retail_sales_db;
+
+-- Pastikan data sudah bersih (setelah cleaning sebelumnya)
+-- Jika belum, jalankan cleaning dulu, lalu gunakan view ini:
+
+CREATE OR REPLACE VIEW v_clean_sales AS
+SELECT 
+    transaction_id,
+    product_id,
+    product_name,
+    region_id,
+    region_name,
+    STR_TO_DATE(date_raw, '%Y-%m-%d') AS date_clean,
+    MONTH(STR_TO_DATE(date_raw, '%Y-%m-%d')) AS month_num,
+    MONTHNAME(STR_TO_DATE(date_raw, '%Y-%m-%d')) AS month_name,
+    YEAR(STR_TO_DATE(date_raw, '%Y-%m-%d')) AS year_val,
+    CAST(quantity_raw AS SIGNED) AS quantity,
+    price_per_unit,
+    CAST(total_price_raw AS DECIMAL(15,2)) AS total_price
+FROM stg_sales
+WHERE quantity_raw IS NOT NULL 
+  AND quantity_raw != ''
+  AND total_price_raw IS NOT NULL 
+  AND total_price_raw != '';
+  
+-- ============================================
+-- KPI CARDS: Ringkasan Eksekutif
+-- ============================================
+SELECT 
+    'Total Revenue' AS metric,
+    CONCAT('Rp ', FORMAT(SUM(total_price), 0)) AS value,
+    SUM(total_price) AS numeric_value
+FROM v_clean_sales
+UNION ALL
+SELECT 'Total Quantity', 
+       CONCAT(FORMAT(SUM(quantity), 0), ' unit'), 
+       SUM(quantity)
+FROM v_clean_sales
+UNION ALL
+SELECT 'Jumlah Wilayah', 
+       CONCAT(COUNT(DISTINCT region_name), ' wilayah'), 
+       COUNT(DISTINCT region_name)
+FROM v_clean_sales
+UNION ALL
+SELECT 'Produk Unik', 
+       CONCAT(COUNT(DISTINCT product_name), ' produk'), 
+       COUNT(DISTINCT product_name)
+FROM v_clean_sales
+UNION ALL
+SELECT 'Total Transaksi', 
+       CONCAT(FORMAT(COUNT(DISTINCT transaction_id), 0), ' trx'), 
+       COUNT(DISTINCT transaction_id)
+FROM v_clean_sales
+UNION ALL
+SELECT 'Rata-rata Harga/Unit', 
+       CONCAT('Rp ', FORMAT(AVG(price_per_unit), 0)), 
+       AVG(price_per_unit)
+FROM v_clean_sales;
+
+-- ============================================
+-- LINE CHART: Tren Penjualan Bulanan 2024
+-- ============================================
+SELECT 
+    month_num,
+    month_name AS bulan,
+    COUNT(DISTINCT transaction_id) AS jumlah_transaksi,
+    SUM(quantity) AS total_qty,
+    SUM(total_price) AS total_revenue,
+    ROUND(AVG(total_price), 0) AS avg_per_trx
+FROM v_clean_sales
+WHERE year_val = 2024
+GROUP BY month_num, month_name
+ORDER BY month_num;
+
+-- PERSIAPAN DATA (Sebelum Visualisasi) --
+-- Query SQL untuk Data Bersih (Gunakan di Semua Chart) --
+USE retail_sales_db;
+
+-- Pastikan data sudah bersih (setelah cleaning sebelumnya)
+-- Jika belum, jalankan cleaning dulu, lalu gunakan view ini:
+
+CREATE OR REPLACE VIEW v_clean_sales AS
+SELECT 
+    transaction_id,
+    product_id,
+    product_name,
+    region_id,
+    region_name,
+    STR_TO_DATE(date_raw, '%Y-%m-%d') AS date_clean,
+    MONTH(STR_TO_DATE(date_raw, '%Y-%m-%d')) AS month_num,
+    MONTHNAME(STR_TO_DATE(date_raw, '%Y-%m-%d')) AS month_name,
+    YEAR(STR_TO_DATE(date_raw, '%Y-%m-%d')) AS year_val,
+    CAST(quantity_raw AS SIGNED) AS quantity,
+    price_per_unit,
+    CAST(total_price_raw AS DECIMAL(15,2)) AS total_price
+FROM stg_sales
+WHERE quantity_raw IS NOT NULL 
+  AND quantity_raw != ''
+  AND total_price_raw IS NOT NULL 
+  AND total_price_raw != '';
+
+-- ============================================
+-- KPI CARDS: Ringkasan Eksekutif
+-- ============================================
+SELECT 
+    'Total Revenue' AS metric,
+    CONCAT('Rp ', FORMAT(SUM(total_price), 0)) AS value,
+    SUM(total_price) AS numeric_value
+FROM v_clean_sales
+UNION ALL
+SELECT 'Total Quantity', 
+       CONCAT(FORMAT(SUM(quantity), 0), ' unit'), 
+       SUM(quantity)
+FROM v_clean_sales
+UNION ALL
+SELECT 'Jumlah Wilayah', 
+       CONCAT(COUNT(DISTINCT region_name), ' wilayah'), 
+       COUNT(DISTINCT region_name)
+FROM v_clean_sales
+UNION ALL
+SELECT 'Produk Unik', 
+       CONCAT(COUNT(DISTINCT product_name), ' produk'), 
+       COUNT(DISTINCT product_name)
+FROM v_clean_sales
+UNION ALL
+SELECT 'Total Transaksi', 
+       CONCAT(FORMAT(COUNT(DISTINCT transaction_id), 0), ' trx'), 
+       COUNT(DISTINCT transaction_id)
+FROM v_clean_sales
+UNION ALL
+SELECT 'Rata-rata Harga/Unit', 
+       CONCAT('Rp ', FORMAT(AVG(price_per_unit), 0)), 
+       AVG(price_per_unit)
+FROM v_clean_sales;
+
+-- ============================================
+-- LINE CHART: Tren Penjualan Bulanan 2024
+-- ============================================
+SELECT 
+    month_num,
+    month_name AS bulan,
+    COUNT(DISTINCT transaction_id) AS jumlah_transaksi,
+    SUM(quantity) AS total_qty,
+    SUM(total_price) AS total_revenue,
+    ROUND(AVG(total_price), 0) AS avg_per_trx
+FROM v_clean_sales
+WHERE year_val = 2024
+GROUP BY month_num, month_name
+ORDER BY month_num;
+
+-- ============================================
+-- BAR CHART: Top 5 Produk by Revenue
+-- ============================================
+SELECT 
+    product_name,
+    COUNT(DISTINCT transaction_id) AS jml_transaksi,
+    SUM(quantity) AS total_unit,
+    SUM(total_price) AS total_revenue,
+    ROUND(AVG(price_per_unit), 0) AS avg_harga,
+    ROUND(100 * SUM(total_price) / (SELECT SUM(total_price) FROM v_clean_sales), 2) AS kontribusi_persen
+FROM v_clean_sales
+GROUP BY product_name
+ORDER BY total_revenue DESC
+LIMIT 5;
+
+-- ============================================
+-- PIE CHART: Distribusi Wilayah
+-- ============================================
+SELECT 
+    region_name,
+    COUNT(DISTINCT transaction_id) AS jml_transaksi,
+    SUM(quantity) AS total_unit,
+    SUM(total_price) AS total_revenue,
+    ROUND(100 * SUM(total_price) / (SELECT SUM(total_price) FROM v_clean_sales), 2) AS pangsa_pasar
+FROM v_clean_sales
+GROUP BY region_name
+ORDER BY total_revenue DESC;
+
+-- ============================================
+-- SCATTER: Hubungan Quantity vs Total Price
+-- ============================================
+SELECT 
+    transaction_id,
+    product_name,
+    region_name,
+    quantity,
+    total_price,
+    price_per_unit,
+    CASE 
+        WHEN total_price >= 2000000 THEN 'High Value'
+        WHEN total_price >= 1000000 THEN 'Medium Value'
+        ELSE 'Low Value'
+    END AS value_category
+FROM v_clean_sales
+ORDER BY total_price DESC;
+
+-- ============================================
+-- COMBO: Avg Price per Unit per Wilayah
+-- ============================================
+SELECT 
+    region_name,
+    ROUND(AVG(price_per_unit), 0) AS avg_price_per_unit,
+    SUM(quantity) AS total_qty,
+    SUM(total_price) AS total_revenue,
+    COUNT(DISTINCT transaction_id) AS jml_transaksi
+FROM v_clean_sales
+GROUP BY region_name
+ORDER BY avg_price_per_unit DESC;
+
