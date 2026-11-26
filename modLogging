@@ -1,0 +1,193 @@
+'=============================================================
+' MODULE: modLogging - Versi dengan Validasi FK
+'=============================================================
+Option Explicit
+
+Public Sub SyncLoggingToDatabase()
+    On Error GoTo ErrorHandler
+    Application.ScreenUpdating = False
+    
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("Logging")
+    
+    ' ============================================
+    ' STEP 1: CEK APAKAH COLLAR SUDAH ADA DI DB
+    ' ============================================
+    If Not OpenConnection() Then Exit Sub
+    
+    ' Cek apakah tabel collar punya data
+    Dim rsCheck As ADODB.Recordset
+    Set rsCheck = GetRecordset("SELECT COUNT(*) AS jml FROM collar")
+    
+    If rsCheck Is Nothing Or rsCheck.Fields("jml").value = 0 Then
+        MsgBox "?? TABEL COLLAR MASIH KOSONG!" & vbCrLf & vbCrLf & _
+               "Silakan sync tabel COLLAR terlebih dahulu:" & vbCrLf & _
+               "1. Klik tombol 'Sync COLLAR' di Dashboard" & vbCrLf & _
+               "2. Tunggu sampai selesai" & vbCrLf & _
+               "3. Baru klik 'Sync LOGGING' ini", _
+               vbExclamation, "Urutan Sync Salah!"
+        Call CloseConnection
+        Exit Sub
+    End If
+    
+    ' ============================================
+    ' STEP 2: VALIDASI HOLE ID SEBELUM SYNC
+    ' ============================================
+    Dim lastRow As Long
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).row
+    
+    If lastRow < 2 Then
+        MsgBox "Tidak ada data di sheet Logging!", vbInformation
+        Exit Sub
+    End If
+    
+    ' Ambil daftar hole_id yang valid dari database
+    Dim rsValidHole As ADODB.Recordset
+    Set rsValidHole = GetRecordset("SELECT hole_id FROM collar")
+    
+    Dim validHoles As Object
+    Set validHoles = CreateObject("Scripting.Dictionary")
+    
+    Do While Not rsValidHole.EOF
+        validHoles.Add rsValidHole.Fields("hole_id").value, True
+        rsValidHole.MoveNext
+    Loop
+    
+    ' Cek setiap baris logging
+    Dim i As Long
+    Dim invalidRows As String
+    invalidRows = ""
+    
+    For i = 2 To lastRow
+        Dim holeID As String
+        holeID = Trim(CStr(ws.Cells(i, 1).value))
+        
+        If Not validHoles.Exists(holeID) Then
+            invalidRows = invalidRows & "Baris " & i & ": " & holeID & vbCrLf
+            ws.Cells(i, 1).Interior.color = RGB(255, 200, 200) ' Merah
+        Else
+            ws.Cells(i, 1).Interior.color = RGB(200, 255, 200) ' Hijau
+        End If
+    Next i
+    
+    ' Jika ada hole_id invalid, tampilkan dan stop
+    If invalidRows <> "" Then
+        MsgBox "? Ada Hole ID yang TIDAK ADA di tabel Collar:" & vbCrLf & vbCrLf & _
+               invalidRows & vbCrLf & _
+               "Perbaiki data di sheet Logging atau sync Collar dulu!", _
+               vbCritical, "Validasi Gagal"
+        Call CloseConnection
+        Exit Sub
+    End If
+    
+    ' ============================================
+    ' STEP 3: PROSES SYNC LOGGING
+    ' ============================================
+    Dim successCount As Integer, failCount As Integer
+    successCount = 0: failCount = 0
+    
+    For i = 2 To lastRow
+        Dim sampleID As String
+        Dim fromM As Double, toM As Double, lengthM As Double
+        Dim fieldZona As String, coreLength As Double
+        
+        holeID = Trim(CStr(ws.Cells(i, 1).value))
+        sampleID = Trim(CStr(ws.Cells(i, 2).value))
+        fromM = CDbl(ws.Cells(i, 3).value)
+        toM = CDbl(ws.Cells(i, 4).value)
+        lengthM = CDbl(ws.Cells(i, 5).value)
+        fieldZona = UCase(Trim(CStr(ws.Cells(i, 6).value)))
+        coreLength = CDbl(ws.Cells(i, 7).value)
+        
+        ' Validasi
+        If Not IsValidHoleID(holeID) Then
+            failCount = failCount + 1
+            GoTo NextRowLog
+        End If
+        
+        If Not IsValidSampleID(sampleID) Then
+            failCount = failCount + 1
+            GoTo NextRowLog
+        End If
+        
+        If Not IsValidFieldZona(fieldZona) Then
+            failCount = failCount + 1
+            GoTo NextRowLog
+        End If
+        
+        If lengthM <= 0 Then
+            MsgBox "Length harus > 0 di baris " & i, vbExclamation
+            failCount = failCount + 1
+            GoTo NextRowLog
+        End If
+        
+        ' Ambil data lainnya
+        Dim color As String, note As String, fieldGeos As String
+        Dim driller As String, welsite As String, rigNumber As String
+        
+        color = CStr(ws.Cells(i, 9).value)
+        note = CStr(ws.Cells(i, 18).value)
+        fieldGeos = CStr(ws.Cells(i, 19).value)
+        driller = CStr(ws.Cells(i, 20).value)
+        welsite = CStr(ws.Cells(i, 21).value)
+        rigNumber = CStr(ws.Cells(i, 22).value)
+        
+        ' Cek apakah sudah ada
+        Dim checkSQL As String
+        checkSQL = "SELECT COUNT(*) AS jml FROM logging WHERE sample_id = '" & sampleID & "'"
+        Set rsCheck = GetRecordset(checkSQL)
+        
+        Dim sql As String
+        If rsCheck.Fields("jml").value > 0 Then
+            ' UPDATE
+            sql = "UPDATE logging SET " & _
+                  "hole_id = '" & holeID & "', " & _
+                  "`from` = " & fromM & ", `to` = " & toM & ", " & _
+                  "length_m = " & lengthM & ", " & _
+                  "field_zona = '" & fieldZona & "', " & _
+                  "core_length = " & coreLength & ", " & _
+                  "color = " & EscapeSQL(color) & ", " & _
+                  "note = " & EscapeSQL(note) & " " & _
+                  "WHERE sample_id = '" & sampleID & "'"
+        Else
+            ' INSERT (recovery_length & recovery_core_length dihitung trigger)
+            sql = "INSERT INTO logging (hole_id, sample_id, `from`, `to`, length_m, field_zona, core_length, " & _
+                  "color, note, field_geos, driller, welsite, rig_number, " & _
+                  "corebarrel_type, core_size_cm, drilling_purpose) VALUES (" & _
+                  "'" & holeID & "', '" & sampleID & "', " & _
+                  fromM & ", " & toM & ", " & lengthM & ", '" & fieldZona & "', " & coreLength & ", " & _
+                  EscapeSQL(color) & ", " & EscapeSQL(note) & ", " & _
+                  EscapeSQL(fieldGeos) & ", " & EscapeSQL(driller) & ", " & _
+                  EscapeSQL(welsite) & ", " & EscapeSQL(rigNumber) & ", " & _
+                  "'NQ', 6, 'Exploration')"
+        End If
+        
+        If ExecuteQuery(sql) Then
+            ws.Cells(i, 1).Interior.color = RGB(200, 255, 200)
+            successCount = successCount + 1
+        Else
+            ws.Cells(i, 1).Interior.color = RGB(255, 200, 200)
+            failCount = failCount + 1
+        End If
+        
+NextRowLog:
+    Next i
+    
+    MsgBox "? Sync LOGGING selesai!" & vbCrLf & vbCrLf & _
+           "? Berhasil: " & successCount & vbCrLf & _
+           "? Gagal: " & failCount, vbInformation, "Hasil Sync"
+    
+    Call LogActivity("Sync LOGGING: " & successCount & " OK, " & failCount & " FAIL")
+    Application.ScreenUpdating = True
+    Exit Sub
+    
+ErrorHandler:
+    MsgBox "? Error: " & Err.Description & vbCrLf & vbCrLf & _
+           "Kemungkinan penyebab:" & vbCrLf & _
+           "1. Tabel COLLAR belum di-sync" & vbCrLf & _
+           "2. Hole ID di Logging tidak ada di Collar" & vbCrLf & _
+           "3. Ada data yang tidak valid", _
+           vbCritical, "Error Sync Logging"
+    Application.ScreenUpdating = True
+End Sub
+
